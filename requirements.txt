@@ -1,2 +1,3 @@
+fastapi
+uvicorn
 websockets
-playsound==1.2.2
