@@ -3,68 +3,57 @@
 <head>
   <meta charset="UTF-8" />
   <title>Rekt Clock</title>
-  <link rel="icon" type="image/png" href="/static/favicon.png" />
+  <link rel="icon" type="image/png" href="/static/favicon.png">
   <style>
     body {
       background-color: black;
       color: lime;
       font-family: monospace;
-      padding: 1rem;
-      white-space: pre-wrap;
+      font-size: 20px;
+      padding: 2rem;
+      white-space: pre;
       overflow-y: scroll;
-      cursor: pointer;
     }
-
     #output {
-      line-height: 1.5;
+      line-height: 1.8;
+      margin-bottom: 1rem;
     }
-
-    .cursor {
+    #prompt {
+      display: inline;
+    }
+    #cursor {
       display: inline-block;
-      width: 10px;
-      height: 1em;
-      background: lime;
-      animation: blink 1s steps(1) infinite;
-      vertical-align: bottom;
-      margin-left: 10px;
+      width: 12px;
+      height: 24px;
+      background-color: lime;
+      margin-left: 8px;
+      animation: blink 1s step-end infinite;
+      vertical-align: middle;
     }
-
     @keyframes blink {
-      0%, 50% { opacity: 1; }
-      50.01%, 100% { opacity: 0; }
+      50% { opacity: 0; }
     }
   </style>
 </head>
 <body>
-  <div id="output">rekt-clock@rekt % python global_liquidations.py<span class="cursor"></span></div>
+  <div id="output">rekt@rekt-clock % python global_liquidations.py</div>
+  <div><span id="prompt">rekt@rekt-clock %</span><div id="cursor"></div></div>
   <audio id="alert-sound" src="/static/alert.wav" preload="auto"></audio>
+
   <script>
     const output = document.getElementById("output");
     const audio = document.getElementById("alert-sound");
     const eventSource = new EventSource("/events");
 
-    // Browsers block autoplay — wait for user interaction
-    let audioEnabled = false;
     document.body.addEventListener("click", () => {
-      audio.play().then(() => {
-        audioEnabled = true;
-        console.log("🔊 Audio unlocked");
-      }).catch(() => {
-        console.warn("⚠️ Audio not unlocked");
-      });
-    }, { once: true });
+      audio.play().catch(() => {}); // try to prompt autoplay permission
+    });
 
     eventSource.onmessage = (e) => {
       const line = `\n${e.data}`;
-      const cursor = document.querySelector(".cursor");
-      output.removeChild(cursor);
       output.textContent += line;
-      output.appendChild(cursor);
       output.scrollTop = output.scrollHeight;
-
-      if (audioEnabled) {
-        audio.play().catch(() => {});
-      }
+      audio.play().catch(() => {});
     };
   </script>
 </body>
