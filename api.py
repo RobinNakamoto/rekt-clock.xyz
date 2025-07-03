@@ -1,14 +1,14 @@
-# BACKEND: `api.py` — this serves liquidations via SSE
-
 import asyncio
 import json
 from fastapi import FastAPI
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
 from starlette.middleware.cors import CORSMiddleware
 from websockets import connect
 
 app = FastAPI()
 
+# CORS for frontend dev
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -16,6 +16,14 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Mount static files
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+# Serve index.html on root
+@app.get("/")
+def root():
+    return FileResponse("static/index.html")
 
 subscribers = set()
 
@@ -72,7 +80,7 @@ async def stream_feed(source, uri):
                 continue
 
             elif source == "BitMEX" and data.get("table") == "liquidation":
-                for item in data.get("data", []):
+                for item in data["data"]:
                     side = item.get("side", "Sell").upper()
                     emoji = "🟢" if side == "SELL" else "🔴"
                     label = "Long REKT" if side == "SELL" else "Short REKT"
@@ -84,7 +92,7 @@ async def stream_feed(source, uri):
                 continue
 
             elif source == "OKX" and data.get("arg", {}).get("channel") == "liquidation":
-                for item in data.get("data", []):
+                for item in data["data"]:
                     side = item.get("side", "sell").upper()
                     emoji = "🟢" if side == "SELL" else "🔴"
                     label = "Long REKT" if side == "SELL" else "Short REKT"
