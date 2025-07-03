@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>rekt-clock@rekt</title>
+  <style>
+    body {
+      background-color: black;
+      color: lime;
+      font-family: monospace;
+      padding: 1rem;
+      white-space: pre;
+      overflow-y: scroll;
+    }
+    #output {
+      line-height: 1.5;
+    }
+  </style>
+</head>
+<body>
+  <div id="output">rekt-clock@rekt % python global_liquidations.py</div>
+  <audio id="alert-sound" src="alert.wav" preload="auto"></audio>
+  <script>
+    const output = document.getElementById("output");
+    const audio = document.getElementById("alert-sound");
+    const eventSource = new EventSource("/events");
+
+    eventSource.onmessage = (e) => {
+      const line = `\n${e.data}`;
+      output.textContent += line;
+      output.scrollTop = output.scrollHeight;
+      audio.play();
+    };
+  </script>
+</body>
+</html>
