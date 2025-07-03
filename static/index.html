@@ -2,24 +2,40 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>rekt-clock@rekt</title>
+  <title>Rekt Clock</title>
+  <link rel="icon" type="image/png" href="/static/favicon.png" />
   <style>
     body {
       background-color: black;
       color: lime;
       font-family: monospace;
       padding: 1rem;
-      white-space: pre;
+      white-space: pre-wrap;
       overflow-y: scroll;
     }
+
     #output {
       line-height: 1.5;
+    }
+
+    .cursor {
+      display: inline-block;
+      width: 10px;
+      height: 1em;
+      background: lime;
+      animation: blink 1s steps(1) infinite;
+      vertical-align: bottom;
+    }
+
+    @keyframes blink {
+      0%, 50% { opacity: 1; }
+      50.01%, 100% { opacity: 0; }
     }
   </style>
 </head>
 <body>
-  <div id="output">rekt-clock@rekt % python global_liquidations.py</div>
-  <audio id="alert-sound" src="alert.wav" preload="auto"></audio>
+  <div id="output">rekt-clock@rekt % python global_liquidations.py<span class="cursor"></span></div>
+  <audio id="alert-sound" src="/static/alert.wav" preload="auto"></audio>
   <script>
     const output = document.getElementById("output");
     const audio = document.getElementById("alert-sound");
@@ -27,9 +43,12 @@
 
     eventSource.onmessage = (e) => {
       const line = `\n${e.data}`;
+      const cursor = document.querySelector(".cursor");
+      output.removeChild(cursor);
       output.textContent += line;
+      output.appendChild(cursor);
       output.scrollTop = output.scrollHeight;
-      audio.play();
+      audio.play().catch(() => {}); // prevents error if autoplay is blocked
     };
   </script>
 </body>
