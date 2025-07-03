@@ -12,6 +12,7 @@
       padding: 1rem;
       white-space: pre-wrap;
       overflow-y: scroll;
+      cursor: pointer;
     }
 
     #output {
@@ -25,6 +26,7 @@
       background: lime;
       animation: blink 1s steps(1) infinite;
       vertical-align: bottom;
+      margin-left: 10px;
     }
 
     @keyframes blink {
@@ -41,6 +43,17 @@
     const audio = document.getElementById("alert-sound");
     const eventSource = new EventSource("/events");
 
+    // Browsers block autoplay — wait for user interaction
+    let audioEnabled = false;
+    document.body.addEventListener("click", () => {
+      audio.play().then(() => {
+        audioEnabled = true;
+        console.log("🔊 Audio unlocked");
+      }).catch(() => {
+        console.warn("⚠️ Audio not unlocked");
+      });
+    }, { once: true });
+
     eventSource.onmessage = (e) => {
       const line = `\n${e.data}`;
       const cursor = document.querySelector(".cursor");
@@ -48,7 +61,10 @@
       output.textContent += line;
       output.appendChild(cursor);
       output.scrollTop = output.scrollHeight;
-      audio.play().catch(() => {}); // prevents error if autoplay is blocked
+
+      if (audioEnabled) {
+        audio.play().catch(() => {});
+      }
     };
   </script>
 </body>
