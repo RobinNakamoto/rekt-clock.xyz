@@ -43,7 +43,22 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 def root():
     return FileResponse("static/index.html")
 
+@app.get("/health")
+def health_check():
+    return {"status": "healthy", "exchanges": 5}
+
+@app.get("/stats")
+def stats():
+    uptime = (datetime.now() - start_time).total_seconds() if start_time else 0
+    return {
+        "uptime_seconds": uptime,
+        "active_connections": len(subscribers),
+        "total_liquidations": liquidation_count
+    }
+
 subscribers = set()
+liquidation_count = 0
+start_time = None
 
 # Exchange configurations
 BINANCE_PAIRS = [
@@ -59,6 +74,8 @@ def get_timestamp():
     return datetime.now().strftime('%H:%M:%S')
 
 async def broadcast(msg):
+    global liquidation_count
+    liquidation_count += 1
     for q in list(subscribers):
         await q.put(msg)
 
@@ -299,7 +316,13 @@ async def sse_endpoint():
 
 @app.on_event("startup")
 async def startup_event():
+    global start_time
+    start_time = datetime.now()
+    
     print("🚀 Starting Unified BTC Liquidations API")
+    print("=" * 50)
+    print(f"Starting at: {start_time}")
+    print("Exchanges: Binance, HTX, OKX, Bybit, BitMEX")
     print("=" * 50)
     
     # Start Binance handlers
@@ -311,6 +334,8 @@ async def startup_event():
     asyncio.create_task(handle_bybit_ws(*BYBIT_FEED))
     asyncio.create_task(handle_bitmex_ws(*BITMEX_FEED))
     asyncio.create_task(handle_okx_ws(*OKX_FEED))
+    
+    print("✅ All exchange handlers started")
 
 if __name__ == "__main__":
     import uvicorn
