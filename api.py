@@ -172,31 +172,49 @@ async def handle_bybit_ws(source, uri):
                 
                 # Send initial ping
                 await ws.send(json.dumps({"op": "ping"}))
+                last_ping = asyncio.get_event_loop().time()
                 
                 while True:
-                    msg = await ws.recv()
-                    data = json.loads(msg)
-                    
-                    # Handle pong
-                    if data.get("ret_msg") == "pong":
-                        await asyncio.sleep(20)
-                        await ws.send(json.dumps({"op": "ping"}))
-                        continue
+                    try:
+                        # Set timeout for receiving messages
+                        msg = await asyncio.wait_for(ws.recv(), timeout=30)
                         
-                    # Handle liquidations
-                    if data.get("topic", "").startswith("liquidation."):
-                        for item in data.get("data", []):
-                            side = item.get("side", "Sell").upper()
-                            size = float(item.get("size", 0))  # Changed from qty
-                            price = float(item.get("price", 0))
-                            total = size * price
+                        # Parse the message first
+                        try:
+                            data = json.loads(msg)
                             
-                            emoji = "🟢" if side == "SELL" else "🔴"
-                            label = "Long REKT" if side == "SELL" else "Short REKT"
+                            # Handle pong requirement
+                            if data.get("ret_msg") == "pong":
+                                continue
                             
-                            formatted = f"[{get_timestamp()}] {emoji} {source} {label} {emoji} {size:.4f} BTC @ ${price:,.0f} 💥 ${total:,.2f} 💥"
-                            await broadcast(formatted)
+                            # Send periodic pings
+                            current_time = asyncio.get_event_loop().time()
+                            if current_time - last_ping > 20:
+                                await ws.send(json.dumps({"op": "ping"}))
+                                last_ping = current_time
                             
+                            # Handle liquidations
+                            if data.get("topic", "").startswith("liquidation."):
+                                for item in data.get("data", []):
+                                    side = item.get("side", "Sell").upper()
+                                    size = float(item.get("size", 0))
+                                    price = float(item.get("price", 0))
+                                    total = size * price
+                                    
+                                    emoji = "🟢" if side == "SELL" else "🔴"
+                                    label = "Long REKT" if side == "SELL" else "Short REKT"
+                                    
+                                    formatted = f"[{get_timestamp()}] {emoji} {source} {label} {emoji} {size:.4f} BTC @ ${price:,.0f} 💥 ${total:,.2f} 💥"
+                                    await broadcast(formatted)
+                                    
+                        except json.JSONDecodeError:
+                            print(f"⚠️ Bybit: Invalid JSON received: {msg[:100]}...")
+                            
+                    except asyncio.TimeoutError:
+                        # Send ping on timeout
+                        await ws.send(json.dumps({"op": "ping"}))
+                        last_ping = asyncio.get_event_loop().time()
+                        
         except Exception as e:
             print(f"🔁 {source} reconnecting in 3s... Error: {e}")
             await asyncio.sleep(3)
@@ -252,7 +270,13 @@ async def handle_bitmex_ws(source, uri):
 async def handle_okx_ws(source, uri):
     while True:
         try:
-            async with websockets.connect(uri, ping_interval=20, ping_timeout=10) as ws:
+            # OKX specific connection parameters
+            async with websockets.connect(
+                uri, 
+                ping_interval=25,  # Send ping every 25 seconds
+                ping_timeout=10,   # Wait 10 seconds for pong
+                close_timeout=10   # Wait 10 seconds for close frame
+            ) as ws:
                 print(f"✅ Connected to {source} @ {uri}")
                 
                 # Subscribe to liquidations
@@ -265,36 +289,61 @@ async def handle_okx_ws(source, uri):
                         }]
                     }
                     await ws.send(json.dumps(sub_msg))
+                    await asyncio.sleep(0.1)  # Small delay between subscriptions
+                
+                # OKX requires periodic pings
+                last_ping = asyncio.get_event_loop().time()
                 
                 while True:
-                    msg = await ws.recv()
                     try:
-                        data = json.loads(msg)
+                        # Set timeout for receiving messages
+                        raw_msg = await asyncio.wait_for(ws.recv(), timeout=30)
                         
-                        if 'arg' in data and 'data' in data:
-                            for update in data['data']:
-                                # Filter for BTC only
-                                inst_family = update.get("instFamily", "")
-                                inst_id = update.get("instId", "")
+                        try:
+                            data = json.loads(raw_msg)
+                            
+                            # Handle OKX pong responses
+                            if data.get("event") == "pong":
+                                continue
                                 
-                                if not ("BTC" in inst_family or "BTC" in inst_id):
-                                    continue
+                            # Send ping every 25 seconds
+                            current_time = asyncio.get_event_loop().time()
+                            if current_time - last_ping > 25:
+                                await ws.send(json.dumps({"op": "ping"}))
+                                last_ping = current_time
+                            
+                            if 'arg' in data and 'data' in data:
+                                for update in data['data']:
+                                    # Filter for BTC only
+                                    inst_family = update.get("instFamily", "")
+                                    inst_id = update.get("instId", "")
                                     
-                                for detail in update.get("details", []):
-                                    sz = float(detail.get("sz", 0))
-                                    px = float(detail.get("bkPx", 0))
-                                    pos = detail.get("posSide", "")
-                                    liq_value = sz * px
-                                    
-                                    emoji = "🟢" if pos == "long" else "🔴"
-                                    label = "Long REKT" if pos == "long" else "Short REKT"
-                                    
-                                    formatted = f"[{get_timestamp()}] {emoji} {source} {label} {emoji} {sz:.4f} BTC @ ${px:,.0f} 💥 ${liq_value:,.2f} 💥"
-                                    await broadcast(formatted)
-                                    
-                    except json.JSONDecodeError:
-                        continue
+                                    if not ("BTC" in inst_family or "BTC" in inst_id):
+                                        continue
+                                        
+                                    for detail in update.get("details", []):
+                                        sz = float(detail.get("sz", 0))
+                                        px = float(detail.get("bkPx", 0))
+                                        pos = detail.get("posSide", "")
+                                        liq_value = sz * px
+                                        
+                                        emoji = "🟢" if pos == "long" else "🔴"
+                                        label = "Long REKT" if pos == "long" else "Short REKT"
+                                        
+                                        formatted = f"[{get_timestamp()}] {emoji} {source} {label} {emoji} {sz:.4f} BTC @ ${px:,.0f} 💥 ${liq_value:,.2f} 💥"
+                                        await broadcast(formatted)
+                                        
+                        except json.JSONDecodeError:
+                            print(f"⚠️ OKX: Invalid JSON received: {raw_msg[:100]}...")
+                            
+                    except asyncio.TimeoutError:
+                        # Send ping on timeout
+                        await ws.send(json.dumps({"op": "ping"}))
+                        last_ping = asyncio.get_event_loop().time()
                         
+        except websockets.exceptions.ConnectionClosedError as e:
+            print(f"🔁 {source} connection closed: {e}")
+            await asyncio.sleep(3)
         except Exception as e:
             print(f"🔁 {source} reconnecting in 3s... Error: {e}")
             await asyncio.sleep(3)
