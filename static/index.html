@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Rekt Clock</title>
   <link rel="icon" type="image/png" href="/static/favicon.png">
   <style>
@@ -13,10 +14,13 @@
       padding: 2rem;
       white-space: pre;
       overflow-y: scroll;
+      margin: 0;
     }
     #output {
       line-height: 1.8;
       margin-bottom: 1rem;
+      white-space: pre-wrap;
+      word-wrap: break-word;
     }
     #prompt {
       display: inline;
@@ -33,6 +37,14 @@
     @keyframes blink {
       50% { opacity: 0; }
     }
+    
+    /* Mobile responsive */
+    @media (max-width: 768px) {
+      body {
+        font-size: 16px;
+        padding: 1rem;
+      }
+    }
   </style>
 </head>
 <body>
@@ -43,18 +55,57 @@
   <script>
     const output = document.getElementById("output");
     const audio = document.getElementById("alert-sound");
-    const eventSource = new EventSource("/events");
+    let eventSource;
+    let reconnectTimeout;
 
+    // Enable audio on first click
     document.body.addEventListener("click", () => {
       audio.play().catch(() => {}); // try to prompt autoplay permission
     });
 
-    eventSource.onmessage = (e) => {
-      const line = `\n${e.data}`;
-      output.textContent += line;
-      output.scrollTop = output.scrollHeight;
-      audio.play().catch(() => {});
-    };
+    function connect() {
+      if (eventSource) {
+        eventSource.close();
+      }
+      
+      eventSource = new EventSource("/events");
+      
+      eventSource.onopen = () => {
+        if (reconnectTimeout) {
+          clearTimeout(reconnectTimeout);
+        }
+      };
+      
+      eventSource.onmessage = (e) => {
+        const line = `\n${e.data}`;
+        output.textContent += line;
+        
+        // Keep only last 500 lines to prevent memory issues
+        const lines = output.textContent.split('\n');
+        if (lines.length > 500) {
+          output.textContent = lines.slice(-500).join('\n');
+        }
+        
+        output.scrollTop = output.scrollHeight;
+        audio.play().catch(() => {});
+      };
+      
+      eventSource.onerror = () => {
+        eventSource.close();
+        // Reconnect after 3 seconds
+        reconnectTimeout = setTimeout(connect, 3000);
+      };
+    }
+    
+    // Start connection
+    connect();
+    
+    // Reconnect when tab becomes visible
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden && eventSource.readyState === EventSource.CLOSED) {
+        connect();
+      }
+    });
   </script>
 </body>
 </html>
