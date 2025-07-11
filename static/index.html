@@ -66,8 +66,7 @@
       .then(res => res.text())
       .then(text => {
         output.textContent += "\n" + text.trim() +
-          "\nrekt@rekt-clock % please click anywhere to activate audio\nrekt@rekt-clock %";
-
+          "\n\nrekt@rekt-clock % please click anywhere to activate audio\n";
         startStream();
       })
       .catch(() => {
