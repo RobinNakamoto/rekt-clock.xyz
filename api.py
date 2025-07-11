@@ -155,8 +155,7 @@ async def startup_event():
 
     global start_time
     start_time = datetime.now()
-    print("
-🚀 Rekt Clock API Booted")
+    print("🚀 Rekt Clock API Booted")
     print("Up and running...")
     print("Ready to receive events ✅")
 
