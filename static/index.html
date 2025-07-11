@@ -37,8 +37,6 @@
     @keyframes blink {
       50% { opacity: 0; }
     }
-    
-    /* Mobile responsive */
     @media (max-width: 768px) {
       body {
         font-size: 16px;
@@ -58,52 +56,51 @@
     let eventSource;
     let reconnectTimeout;
 
-    // Enable audio on first click
+    // Click to activate audio
     document.body.addEventListener("click", () => {
-      audio.play().catch(() => {}); // try to prompt autoplay permission
+      audio.play().catch(() => {});
     });
 
-    function connect() {
-      if (eventSource) {
-        eventSource.close();
-      }
-      
+    // Fetch summary before starting event stream
+    fetch("/summary")
+      .then(res => res.text())
+      .then(text => {
+        output.textContent += "\n" + text.trim() +
+          "\n\nrekt@rekt-clock % please click anywhere to activate audio\n";
+        startStream();
+      })
+      .catch(() => {
+        output.textContent += "\n(rekt@rekt-clock % failed to load summary)\n";
+        startStream();
+      });
+
+    function startStream() {
+      if (eventSource) eventSource.close();
+
       eventSource = new EventSource("/events");
-      
-      eventSource.onopen = () => {
-        if (reconnectTimeout) {
-          clearTimeout(reconnectTimeout);
-        }
-      };
-      
+
       eventSource.onmessage = (e) => {
         const line = `\n${e.data}`;
         output.textContent += line;
-        
-        // Keep only last 500 lines to prevent memory issues
+
         const lines = output.textContent.split('\n');
         if (lines.length > 500) {
           output.textContent = lines.slice(-500).join('\n');
         }
-        
+
         output.scrollTop = output.scrollHeight;
         audio.play().catch(() => {});
       };
-      
+
       eventSource.onerror = () => {
         eventSource.close();
-        // Reconnect after 3 seconds
-        reconnectTimeout = setTimeout(connect, 3000);
+        reconnectTimeout = setTimeout(startStream, 3000);
       };
     }
-    
-    // Start connection
-    connect();
-    
-    // Reconnect when tab becomes visible
+
     document.addEventListener('visibilitychange', () => {
       if (!document.hidden && eventSource.readyState === EventSource.CLOSED) {
-        connect();
+        startStream();
       }
     });
   </script>
