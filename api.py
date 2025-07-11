@@ -78,8 +78,8 @@ def summary():
     for tf in ["24h", "12h", "4h", "1h"]:
         d = summary["total"][tf]
         out.append(f"{tf}: {d['btc']:.2f} BTC / ${d['usd']:,.0f}")
-    out += ["", "rekt@rekt-clock % please click anywhere to activate audio", "rekt@rekt-clock %"]
-
+    out.append("")
+    
     return PlainTextResponse("\n".join(out))
 
 
