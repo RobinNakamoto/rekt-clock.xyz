@@ -67,6 +67,15 @@
 
 ---
 
+## Google Analytics
+
+This project includes a [Google Analytics](https://analytics.google.com/) tag owned by [@RobinNakamoto](https://twitter.com/RobinNakamoto).  
+It is set up to **only run on the official domain `rekt-clock.xyz`**.
+
+If you fork or self-host this project, please **remove or replace the GA tag** in `index.html` to avoid sending traffic to my analytics.
+
+---
+
 ## License
 
 This project is licensed under the **GNU General Public License v3.0**.
