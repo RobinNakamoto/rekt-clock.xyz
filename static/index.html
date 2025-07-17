@@ -13,6 +13,21 @@
   <meta name="twitter:description" content="Live feed of Bitcoin liquidation events. Updated in real time.">
   <meta name="twitter:image" content="https://rekt-clock.xyz/static/preview.png">
 
+  <!--
+    Google Analytics — owned by @RobinNakamoto.
+    If you fork this repo, remove this GA snippet or replace it with your own GA tag.
+    Tracking only runs on rekt-clock.xyz.
+  -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-3JSYSJG8KS"></script>
+  <script>
+    if (location.hostname === "rekt-clock.xyz") {
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-3JSYSJG8KS');
+    }
+  </script>
+
   <style>
     body {
       background-color: black;
